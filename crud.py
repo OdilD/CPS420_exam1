@@ -1,0 +1,63 @@
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from models import Item, Claim
+from schemas import ItemIn, ClaimIn
+
+# ✅ PROVIDED
+def get_all_items(db: Session, skip: int = 0, limit: int = 10) -> list[Item]:
+    return db.query(Item).offset(skip).limit(limit).all()
+
+# ✅ PROVIDED
+def get_one_item(db: Session, item_id: int) -> Item | None:
+    return db.query(Item).filter(Item.id == item_id).first()
+
+# ✅ PROVIDED
+def get_claims_for_item(db: Session, item_id: int) -> list[Claim]:
+    return db.query(Claim).filter(Claim.item_id == item_id).all()
+
+# TODO #1 — Implement create_item()
+# Hints:
+#   - Build an Item ORM object from item_in.model_dump()
+#   - Use db.add(), db.commit(), db.refresh(), return the new item
+def create_item(db: Session, item_in: ItemIn) -> Item:
+    ...
+
+# TODO #2 — Implement update_item()
+# Hints:
+#   - Use get_one_item() to fetch; return None if not found
+#   - Loop over item_in.model_dump().items() and use setattr()
+#   - Commit, refresh, and return the updated item
+def update_item(db: Session, item_id: int, item_in: ItemIn) -> Item | None:
+    ...
+
+# TODO #3 — Implement delete_item()
+# Hints:
+#   - Fetch with get_one_item(); return False if not found
+#   - db.delete() + db.commit(), return True
+#   - Cascade in models.py will auto-delete all related claims
+def delete_item(db: Session, item_id: int) -> bool:
+    ...
+
+# TODO #4 — Implement create_claim()
+# Hints:
+#   - Build a Claim ORM object using claim_in.model_dump(), set item_id
+#   - db.add(), db.commit(), db.refresh(), return the new claim
+def create_claim(db: Session, item_id: int, claim_in: ClaimIn) -> Claim:
+    ...
+
+# TODO #5 — Implement get_unresolved_items()
+# Hints:
+#   - Query Item where Item.resolved == False
+#   - Apply skip and limit, return the list
+def get_unresolved_items(db: Session, skip: int = 0, limit: int = 10) -> list[Item]:
+    ...
+
+# TODO #6 — Implement get_item_stats()
+# Hints:
+#   - Fetch the item using get_one_item(); return None if not found
+#   - Use db.query(func.count(Claim.id)).filter(Claim.item_id == item_id)
+#     for total_claims
+#   - Add a second filter for Claim.approved == True to count approved claims
+#   - Return an ItemStats object built manually (not an ORM object)
+def get_item_stats(db: Session, item_id: int):
+    ...
