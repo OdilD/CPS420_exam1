@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from models import Item, Claim
-from schemas import ItemIn, ClaimIn
+from schemas import ItemIn, ClaimIn, ItemStats
 
 # ✅ PROVIDED
 def get_all_items(db: Session, skip: int = 0, limit: int = 10) -> list[Item]:
@@ -20,6 +20,11 @@ def get_claims_for_item(db: Session, item_id: int) -> list[Claim]:
 #   - Build an Item ORM object from item_in.model_dump()
 #   - Use db.add(), db.commit(), db.refresh(), return the new item
 def create_item(db: Session, item_in: ItemIn) -> Item:
+    new_item = Item(**item_in.model_dump())   
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)                    
+    return new_item
     ...
 
 # TODO #2 — Implement update_item()
@@ -28,6 +33,14 @@ def create_item(db: Session, item_in: ItemIn) -> Item:
 #   - Loop over item_in.model_dump().items() and use setattr()
 #   - Commit, refresh, and return the updated item
 def update_item(db: Session, item_id: int, item_in: ItemIn) -> Item | None:
+    item = get_one_item(db, item_id)          
+    if not item:
+        return None
+    for field, value in item_in.model_dump().items():
+        setattr(item, field, value)          
+    db.commit()
+    db.refresh(item)
+    return item
     ...
 
 # TODO #3 — Implement delete_item()
@@ -36,6 +49,12 @@ def update_item(db: Session, item_id: int, item_in: ItemIn) -> Item | None:
 #   - db.delete() + db.commit(), return True
 #   - Cascade in models.py will auto-delete all related claims
 def delete_item(db: Session, item_id: int) -> bool:
+    item = get_one_item(db, item_id)
+    if not item:
+        return False
+    db.delete(item)
+    db.commit()
+    return True
     ...
 
 # TODO #4 — Implement create_claim()
@@ -43,6 +62,11 @@ def delete_item(db: Session, item_id: int) -> bool:
 #   - Build a Claim ORM object using claim_in.model_dump(), set item_id
 #   - db.add(), db.commit(), db.refresh(), return the new claim
 def create_claim(db: Session, item_id: int, claim_in: ClaimIn) -> Claim:
+    new_claim = Claim(**claim_in.model_dump(), item_id=item_id) 
+    db.add(new_claim)
+    db.commit()
+    db.refresh(new_claim)
+    return new_claim
     ...
 
 # TODO #5 — Implement get_unresolved_items()
@@ -50,6 +74,13 @@ def create_claim(db: Session, item_id: int, claim_in: ClaimIn) -> Claim:
 #   - Query Item where Item.resolved == False
 #   - Apply skip and limit, return the list
 def get_unresolved_items(db: Session, skip: int = 0, limit: int = 10) -> list[Item]:
+    return (
+        db.query(Item)
+        .filter(Item.resolved == False)      
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     ...
 
 # TODO #6 — Implement get_item_stats()
@@ -59,5 +90,27 @@ def get_unresolved_items(db: Session, skip: int = 0, limit: int = 10) -> list[It
 #     for total_claims
 #   - Add a second filter for Claim.approved == True to count approved claims
 #   - Return an ItemStats object built manually (not an ORM object)
-def get_item_stats(db: Session, item_id: int):
+def get_item_stats(db: Session, item_id: int) -> ItemStats | None:
+    item = get_one_item(db, item_id)
+    if not item:
+        return None
+
+    total_claims = (
+        db.query(func.count(Claim.id))
+        .filter(Claim.item_id == item_id)
+        .scalar()                             
+    )
+
+    approved_claims = (
+        db.query(func.count(Claim.id))
+        .filter(Claim.item_id == item_id, Claim.approved == True)
+        .scalar()
+    )
+    return ItemStats(
+        item_id=item.id,
+        name=item.name,
+        total_claims=total_claims,
+        approved=approved_claims,
+        resolved=item.resolved,
+    )
     ...
